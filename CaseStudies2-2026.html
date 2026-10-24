@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Case studies II - selecting times</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+      color: #222;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 1.5rem; }
+    .row { display: flex; gap: 0.75rem; align-items: center; margin: 1rem 0; flex-wrap: wrap; }
+    input[type="text"] {
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      min-width: 220px;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #0066cc;
+      background: #0066cc;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      border-color: #ccc;
+      cursor: not-allowed;
+    }
+    button.copy {
+      background: #555;
+      border-color: #555;
+      padding: 0.5rem 0.75rem;
+    }
+    button.copy svg { vertical-align: middle; }
+    .section { margin: 1.5rem 0; }
+    .section h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
+    label { display: block; margin: 0.4rem 0; cursor: pointer; }
+    label input { margin-right: 0.5rem; }
+    .note { font-style: italic; color: #555; margin: 0.25rem 0 0.5rem 1.5rem; font-size: 0.95rem; }
+    .status { margin: 0.5rem 0; color: #006600; min-height: 1.2em; }
+    .error { color: #cc0000; }
+  </style>
+</head>
+<body>
+  <h1>Case studies II - selecting times</h1>
+
+  <div class="row">
+    <input type="text" id="nameInput" placeholder="Your name" autocomplete="name">
+    <button id="submitTop" disabled>Submit</button>
+    <button class="copy" id="copyTop" title="Copy selection to clipboard">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    </button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="section">
+    <p>Select Case studies you are willing to work at. If I get at least 3 people willing to do the case, we will schedule a meeting. If less than 3 people - no meeting scheduled, but you can work individually and ask me questions during the classes.</p>
+    <div id="cases"></div>
+  </div>
+
+  <div class="section">
+    <h2>Available times</h2>
+    <div id="times"></div>
+  </div>
+
+  <div class="row">
+    <button class="copy" id="copyBottom" title="Copy selection to clipboard">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    </button>
+  </div>
+  <div class="row">
+    <button id="submitBottom" disabled>Submit</button>
+  </div>
+
+  <!-- Firebase SDK (compat for simple static use) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    // REPLACE WITH YOUR FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const COLLECTION = "caseStudies2_2026";
+
+    const cases = [
+      { id: "A", label: "A. Vector flows and Lie derivative" },
+      { id: "B", label: "B. Metric spaces" },
+      { id: "C", label: "C. Symplectic geometry and Hamiltonian mechanics" },
+      { id: "D", label: "D. Complex manifolds Part I – almost complex structure", note: "to be followed by Part II (topological obstructions for complex structure) and Part III (Kähler manifolds) in, resp., Part III and Part IV of the course" },
+      { id: "E", label: "E. Supermathematics" },
+      { id: "F", label: "F. Chevalley-Eilenberg complex and Lie algebra cohomology", note: "to be followed by BRST quantisation in part IV of the course." },
+      { id: "G", label: "G. Abel-Jacobi map and separation of variables (upon request, this is a continuation of Riemann surfaces as complex manifolds from HW1)." }
+    ];
+
+    // Inferred from calendar screenshots (GMTP case study lock, bluish). Durations vary 60/75 min as intended.
+    const times = [
+      { id: "mon2_0845", label: "Mon 2 Nov, 08:45–10:00 (75 min)" },
+      { id: "mon2_1200", label: "Mon 2 Nov, 12:00–13:15 (75 min)" },
+      { id: "thu5_0845", label: "Thu 5 Nov, 08:45–10:00 (75 min)" },
+      { id: "thu5_1100", label: "Thu 5 Nov, 11:00–12:00 (60 min)" },
+      { id: "thu5_1200", label: "Thu 5 Nov, 12:00–13:00 (60 min)" },
+      { id: "thu5_1315", label: "Thu 5 Nov, 13:15–14:30 (75 min)" },
+      { id: "thu5_1430", label: "Thu 5 Nov, 14:30–15:45 (75 min)" },
+      { id: "fri6_0845", label: "Fri 6 Nov, 08:45–10:00 (75 min)" },
+      { id: "mon9_0845", label: "Mon 9 Nov, 08:45–10:00 (75 min)" },
+      { id: "mon9_1245", label: "Mon 9 Nov, 12:45–14:00 (75 min)" }
+    ];
+
+    const nameInput = document.getElementById("nameInput");
+    const submitTop = document.getElementById("submitTop");
+    const submitBottom = document.getElementById("submitBottom");
+    const copyTop = document.getElementById("copyTop");
+    const copyBottom = document.getElementById("copyBottom");
+    const statusEl = document.getElementById("status");
+    const casesDiv = document.getElementById("cases");
+    const timesDiv = document.getElementById("times");
+
+    function renderOptions() {
+      casesDiv.innerHTML = cases.map(c => `
+        <label>
+          <input type="checkbox" name="case" value="${c.id}">
+          ${c.label}
+        </label>
+        ${c.note ? `<div class="note">${c.note}</div>` : ""}
+      `).join("");
+
+      timesDiv.innerHTML = times.map(t => `
+        <label>
+          <input type="checkbox" name="time" value="${t.id}">
+          ${t.label}
+        </label>
+      `).join("");
+    }
+
+    function getSelected() {
+      const selectedCases = [...document.querySelectorAll('input[name="case"]:checked')].map(el => el.value);
+      const selectedTimes = [...document.querySelectorAll('input[name="time"]:checked')].map(el => el.value);
+      return { selectedCases, selectedTimes };
+    }
+
+    function setSelected(selectedCases = [], selectedTimes = []) {
+      document.querySelectorAll('input[name="case"]').forEach(el => {
+        el.checked = selectedCases.includes(el.value);
+      });
+      document.querySelectorAll('input[name="time"]').forEach(el => {
+        el.checked = selectedTimes.includes(el.value);
+      });
+    }
+
+    function updateSubmitState() {
+      const hasName = nameInput.value.trim().length > 0;
+      submitTop.disabled = !hasName;
+      submitBottom.disabled = !hasName;
+    }
+
+    async function loadIfExists() {
+      const name = nameInput.value.trim();
+      if (!name) {
+        setSelected();
+        statusEl.textContent = "";
+        return;
+      }
+      try {
+        const doc = await db.collection(COLLECTION).doc(name).get();
+        if (doc.exists) {
+          const data = doc.data();
+          setSelected(data.cases || [], data.times || []);
+          statusEl.textContent = "Loaded your previous selection.";
+          statusEl.className = "status";
+        } else {
+          setSelected();
+          statusEl.textContent = "";
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Could not load (check Firebase config / rules).";
+        statusEl.className = "status error";
+      }
+    }
+
+    async function save() {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      const { selectedCases, selectedTimes } = getSelected();
+      const data = {
+        name,
+        cases: selectedCases,
+        times: selectedTimes,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      try {
+        await db.collection(COLLECTION).doc(name).set(data);
+        statusEl.textContent = "Saved.";
+        statusEl.className = "status";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Save failed. Check Firebase config and open rules.";
+        statusEl.className = "status error";
+      }
+    }
+
+    function copyToClipboard() {
+      const name = nameInput.value.trim() || "(no name)";
+      const { selectedCases, selectedTimes } = getSelected();
+      const caseLabels = selectedCases.map(id => cases.find(c => c.id === id)?.label || id);
+      const timeLabels = selectedTimes.map(id => times.find(t => t.id === id)?.label || id);
+
+      const text = [
+        `Name: ${name}`,
+        "",
+        "Case studies:",
+        ...(caseLabels.length ? caseLabels.map(l => `- ${l}`) : ["(none)"]),
+        "",
+        "Times:",
+        ...(timeLabels.length ? timeLabels.map(l => `- ${l}`) : ["(none)"])
+      ].join("\n");
+
+      navigator.clipboard.writeText(text).then(() => {
+        statusEl.textContent = "Copied to clipboard.";
+        statusEl.className = "status";
+        setTimeout(() => { if (statusEl.textContent === "Copied to clipboard.") statusEl.textContent = ""; }, 2000);
+      }).catch(() => {
+        statusEl.textContent = "Copy failed.";
+        statusEl.className = "status error";
+      });
+    }
+
+    // Events
+    nameInput.addEventListener("input", () => {
+      updateSubmitState();
+    });
+    nameInput.addEventListener("change", loadIfExists); // load on blur / enter
+    nameInput.addEventListener("blur", loadIfExists);
+
+    submitTop.addEventListener("click", save);
+    submitBottom.addEventListener("click", save);
+    copyTop.addEventListener("click", copyToClipboard);
+    copyBottom.addEventListener("click", copyToClipboard);
+
+    // Init
+    renderOptions();
+    updateSubmitState();
+  </script>
+</body>
+</html>
