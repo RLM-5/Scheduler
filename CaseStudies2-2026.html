@@ -30,6 +30,15 @@
       color: white;
       border-radius: 4px;
       cursor: pointer;
+      transition: background 0.1s, transform 0.05s, box-shadow 0.1s;
+    }
+    button:hover:not(:disabled) {
+      background: #0055aa;
+    }
+    button:active:not(:disabled) {
+      background: #004488;
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
     }
     button:disabled {
       background: #ccc;
@@ -41,14 +50,38 @@
       border-color: #555;
       padding: 0.5rem 0.75rem;
     }
+    button.copy:hover:not(:disabled) {
+      background: #444;
+    }
+    button.copy:active:not(:disabled) {
+      background: #333;
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
     button.copy svg { vertical-align: middle; }
     .section { margin: 1.5rem 0; }
     .section h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
     label { display: block; margin: 0.4rem 0; cursor: pointer; }
     label input { margin-right: 0.5rem; }
     .note { font-style: italic; color: #555; margin: 0.25rem 0 0.5rem 1.5rem; font-size: 0.95rem; }
-    .status { margin: 0.5rem 0; color: #006600; min-height: 1.2em; }
-    .error { color: #cc0000; }
+    .status {
+      margin: 0.75rem 0;
+      padding: 0.6rem 0.8rem;
+      border-radius: 4px;
+      font-weight: 600;
+      min-height: 1.2em;
+      font-size: 1.05rem;
+    }
+    .status.success {
+      background: #e6f4ea;
+      color: #137333;
+      border: 1px solid #b7e1c0;
+    }
+    .status.error {
+      background: #fce8e6;
+      color: #c5221f;
+      border: 1px solid #f5c6c2;
+    }
   </style>
 </head>
 <body>
@@ -182,6 +215,7 @@
       if (!name) {
         setSelected();
         statusEl.textContent = "";
+        statusEl.className = "status";
         return;
       }
       try {
@@ -190,14 +224,15 @@
           const data = doc.data();
           setSelected(data.cases || [], data.times || []);
           statusEl.textContent = "Loaded your previous selection.";
-          statusEl.className = "status";
+          statusEl.className = "status success";
         } else {
           setSelected();
           statusEl.textContent = "";
+          statusEl.className = "status";
         }
       } catch (err) {
         console.error(err);
-        statusEl.textContent = "Could not load (check Firebase config / rules).";
+        statusEl.textContent = "Could not connect to the database. Your previous selection was not loaded.";
         statusEl.className = "status error";
       }
     }
@@ -214,11 +249,11 @@
       };
       try {
         await db.collection(COLLECTION).doc(name).set(data);
-        statusEl.textContent = "Saved.";
-        statusEl.className = "status";
+        statusEl.textContent = "Saved successfully.";
+        statusEl.className = "status success";
       } catch (err) {
         console.error(err);
-        statusEl.textContent = "Save failed. Check Firebase config and open rules.";
+        statusEl.textContent = "No connection to the database. Your data was not saved.";
         statusEl.className = "status error";
       }
     }
@@ -241,10 +276,15 @@
 
       navigator.clipboard.writeText(text).then(() => {
         statusEl.textContent = "Copied to clipboard.";
-        statusEl.className = "status";
-        setTimeout(() => { if (statusEl.textContent === "Copied to clipboard.") statusEl.textContent = ""; }, 2000);
+        statusEl.className = "status success";
+        setTimeout(() => {
+          if (statusEl.textContent === "Copied to clipboard.") {
+            statusEl.textContent = "";
+            statusEl.className = "status";
+          }
+        }, 2500);
       }).catch(() => {
-        statusEl.textContent = "Copy failed.";
+        statusEl.textContent = "Copy failed. Please try again.";
         statusEl.className = "status error";
       });
     }
