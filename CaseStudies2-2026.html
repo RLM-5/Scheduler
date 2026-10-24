@@ -82,6 +82,11 @@
       color: #c5221f;
       border: 1px solid #f5c6c2;
     }
+    .status.warning {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+    }
   </style>
 </head>
 <body>
@@ -172,6 +177,31 @@
     const casesDiv = document.getElementById("cases");
     const timesDiv = document.getElementById("times");
 
+    let baseline = { cases: [], times: [] }; // last loaded or saved selection
+
+    function arraysEqual(a, b) {
+      if (a.length !== b.length) return false;
+      const sa = [...a].sort();
+      const sb = [...b].sort();
+      return sa.every((v, i) => v === sb[i]);
+    }
+
+    function checkDeviation() {
+      const current = getSelected();
+      const differs = !arraysEqual(current.selectedCases, baseline.cases) ||
+                      !arraysEqual(current.selectedTimes, baseline.times);
+      if (differs) {
+        statusEl.textContent = "click submit to save your preferences";
+        statusEl.className = "status warning";
+      } else {
+        // only clear if we were showing the warning
+        if (statusEl.classList.contains("warning")) {
+          statusEl.textContent = "";
+          statusEl.className = "status";
+        }
+      }
+    }
+
     function renderOptions() {
       casesDiv.innerHTML = cases.map(c => `
         <label>
@@ -214,6 +244,7 @@
       const name = nameInput.value.trim();
       if (!name) {
         setSelected();
+        baseline = { cases: [], times: [] };
         statusEl.textContent = "";
         statusEl.className = "status";
         return;
@@ -222,11 +253,15 @@
         const doc = await db.collection(COLLECTION).doc(name).get();
         if (doc.exists) {
           const data = doc.data();
-          setSelected(data.cases || [], data.times || []);
+          const loadedCases = data.cases || [];
+          const loadedTimes = data.times || [];
+          setSelected(loadedCases, loadedTimes);
+          baseline = { cases: [...loadedCases], times: [...loadedTimes] };
           statusEl.textContent = "Loaded your previous selection.";
           statusEl.className = "status success";
         } else {
           setSelected();
+          baseline = { cases: [], times: [] };
           statusEl.textContent = "";
           statusEl.className = "status";
         }
@@ -249,6 +284,7 @@
       };
       try {
         await db.collection(COLLECTION).doc(name).set(data);
+        baseline = { cases: [...selectedCases], times: [...selectedTimes] };
         statusEl.textContent = "Saved successfully.";
         statusEl.className = "status success";
       } catch (err) {
@@ -300,6 +336,13 @@
     submitBottom.addEventListener("click", save);
     copyTop.addEventListener("click", copyToClipboard);
     copyBottom.addEventListener("click", copyToClipboard);
+
+    // Watch for checkbox changes to detect deviation from baseline
+    document.addEventListener("change", (e) => {
+      if (e.target.matches('input[name="case"], input[name="time"]')) {
+        checkDeviation();
+      }
+    });
 
     // Init
     renderOptions();
