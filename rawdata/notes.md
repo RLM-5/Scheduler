@@ -10,26 +10,11 @@
 
 ## Firebase
 - Uses Firebase JS SDK (compat) via CDN.
+- Project: scheduler-66311
 - Collection: `caseStudies2_2026`
 - Document ID: the entered name
 - Fields: name, cases (array of ids), times (array of ids), updatedAt
-
-## Before it works
-You must:
-1. Create a Firebase project (Europe region for Firestore).
-2. Create a Firestore database in production mode.
-3. Set rules to open (anyone can read/write):
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /{document=**} {
-         allow read, write: if true;
-       }
-     }
-   }
-   ```
-4. Get the web app config and replace the placeholder `firebaseConfig` object in the HTML.
+- Config is already inserted in the HTML. Rules are open.
 
 ## Times inferred
 From the calendar screenshots (GMTP case study lock, bluish):
